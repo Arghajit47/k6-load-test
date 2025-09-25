@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>k6 Master Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts-more.js"></script>
+    <script src="https://code.highcharts.com/modules/histogram-bellcurve.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/themes/dark-unica.js"></script>
+
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --container-bg: #2a2a2e;
+        --border-color: #404044;
+        --text-primary: #f0f0f0;
+        --text-secondary: #a0a0a0;
+        --font-family: "Inter", sans-serif;
+      }
+      body {
+        font-family: var(--font-family);
+        margin: 0;
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+      }
+      .container {
+        width: 95%;
+        max-width: 1800px;
+        margin: 20px auto;
+      }
+      h1 {
+        text-align: center;
+        font-weight: 700;
+      }
+      h2 {
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-top: 40px;
+        font-weight: 600;
+        grid-column: 1 / -1;
+      }
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+      }
+      .chart-container {
+        background: var(--container-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      .data-na-overlay {
+        text-align: center;
+        color: var(--text-secondary);
+      }
+      .data-na-overlay svg {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 15px;
+      }
+      .data-na-overlay h3 {
+        margin: 0 0 5px 0;
+        color: var(--text-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>k6 Master Performance Dashboard</h1>
+
+      <div id="dashboard-root"></div>
+    </div>
+
+    <script>
+      const CHART_DEFINITIONS = {
+        "1. Load Pattern & Test Configuration": [
+          {
+            id: "vu-count",
+            title: "VU Count Over Time",
+            type: "line",
+            requiredData: (d) => d.timeSeries.vus,
+            options: (d) => ({
+              series: [{ name: "VUs", data: d.timeSeries.vus, type: "area" }],
+            }),
+          },
+          { id: "vu-arrival", title: "VU Arrival/Drop-off Rate" },
+          { id: "vu-state", title: "VU State Distribution" },
+          { id: "vu-allocation", title: "VU Allocation per Load Zone" },
+          { id: "load-profile", title: "Load Profile Timeline" },
+          { id: "scenario-dist", title: "Scenario-based VU Distribution" },
+          { id: "custom-metrics-timeline", title: "Custom Metrics Timeline" },
+        ],
+        "2. HTTP Performance": [
+          {
+            id: "resp-time-trend",
+            title: "Response Time Trend",
+            type: "line",
+            requiredData: (d) => d.timeSeries.p95,
+            options: (d) => ({
+              yAxis: { title: { text: "Duration (ms)" } },
+              series: [
+                { name: "P95", data: d.timeSeries.p95 },
+                { name: "P99", data: d.timeSeries.p99 },
+                { name: "Median", data: d.timeSeries.median },
+              ],
+            }),
+          },
+          {
+            id: "resp-time-dist",
+            title: "Response Time Distribution",
+            type: "histogram",
+            requiredData: (d) => d.distributions.allDurations,
+            options: (d) => ({
+              xAxis: { title: { text: "Duration (ms)" } },
+              yAxis: { title: { text: "Request Count" } },
+              series: [
+                { type: "histogram", name: "Requests", baseSeries: "s1" },
+                {
+                  data: d.distributions.allDurations,
+                  id: "s1",
+                  visible: false,
+                  showInLegend: false,
+                },
+              ],
+            }),
+          },
+          {
+            id: "resp-time-percentiles",
+            title: "Response Time Percentiles Over Time",
+          },
+          { id: "resp-time-by-endpoint", title: "Response Time by Endpoint" },
+          {
+            id: "rps",
+            title: "Requests Per Second (RPS)",
+            type: "line",
+            requiredData: (d) => d.timeSeries.rps,
+            options: (d) => ({
+              series: [{ name: "RPS", data: d.timeSeries.rps, type: "line" }],
+            }),
+          },
+          { id: "total-reqs", title: "Total Requests Over Time" },
+          { id: "req-rate-by-method", title: "Request Rate by HTTP Method" },
+          { id: "req-size-dist", title: "Request Size Distribution" },
+          {
+            id: "error-rate",
+            title: "Error Rate Over Time",
+            type: "line",
+            requiredData: (d) => d.timeSeries.errorRate,
+            options: (d) => ({
+              yAxis: { title: { text: "Error Rate (%)" } },
+              series: [
+                {
+                  name: "Error Rate",
+                  data: d.timeSeries.errorRate,
+                  type: "line",
+                },
+              ],
+            }),
+          },
+          { id: "error-types", title: "Error Types Breakdown" },
+          {
+            id: "error-vs-resp-time",
+            title: "Error Rate vs Response Time Correlation",
+            type: "scatter",
+            requiredData: (d) => d.correlation.loadVsResponse,
+            options: (d) => ({
+              xAxis: { title: { text: "Concurrent Virtual Users" } },
+              yAxis: { title: { text: "Response Time (ms)" } },
+              series: [
+                {
+                  name: "Request",
+                  data: d.correlation.loadVsResponse,
+                  marker: { radius: 2 },
+                  showInLegend: false,
+                },
+              ],
+            }),
+          },
+          { id: "error-timeline", title: "Error Timeline with Annotations" },
+        ],
+        "3. System Resource Charts": [
+          { id: "cpu-util", title: "CPU Utilization %" },
+          { id: "mem-usage", title: "Memory Usage" },
+          { id: "cpu-load", title: "CPU Load Average" },
+          { id: "net-io", title: "Network I/O" },
+          { id: "disk-io", title: "Disk I/O Operations" },
+          { id: "disk-space", title: "Disk Space Utilization" },
+          { id: "db-conn-pool", title: "Database Connection Pool" },
+          { id: "gc-metrics", title: "Garbage Collection Metrics" },
+          { id: "thread-pool", title: "Thread Pool Utilization" },
+          { id: "cache-hits", title: "Cache Hit Ratios" },
+        ],
+        "4. k6 Internal Metrics": [
+          {
+            id: "iter-rate",
+            title: "Iterations Rate",
+            type: "line",
+            requiredData: (d) => d.timeSeries.iterationRate,
+            options: (d) => ({
+              series: [
+                {
+                  name: "Iterations/sec",
+                  data: d.timeSeries.iterationRate,
+                  type: "line",
+                },
+              ],
+            }),
+          },
+          { id: "iter-completed", title: "Iterations Completed" },
+          { id: "iter-by-scenario", title: "Iterations by Scenario" },
+          {
+            id: "check-rate",
+            title: "Check Success Rate",
+            type: "pie",
+            requiredData: (d) => d.distributions.checksRatio,
+            options: (d) => ({
+              tooltip: {
+                pointFormat:
+                  "{series.name}: <b>{point.percentage:.1f}%</b> ({point.y})",
+              },
+              series: [
+                {
+                  name: "Checks",
+                  colorByPoint: true,
+                  data: d.distributions.checksRatio,
+                },
+              ],
+            }),
+          },
+          { id: "threshold-status", title: "Threshold Status Over Time" },
+          { id: "custom-metric-vals", title: "Custom Metric Values" },
+          { id: "k6-cpu", title: "k6 CPU/Memory Usage" },
+          { id: "k6-goroutines", title: "k6 Go Routine Count" },
+        ],
+        "5. Advanced Analytical Charts": [
+          { id: "baseline-comp", title: "Baseline Comparison" },
+          { id: "trend-analysis", title: "Trend Analysis" },
+          {
+            id: "perf-degradation",
+            title: "Performance Degradation Detection",
+          },
+          { id: "load-vs-resp", title: "Load vs Response Time Correlation" },
+          { id: "error-vs-users", title: "Error Rate vs Concurrent Users" },
+          {
+            id: "resource-vs-perf",
+            title: "Resource Utilization vs Performance",
+          },
+          {
+            id: "resp-time-violin",
+            title: "Response Time Percentile Distribution (Violin)",
+          },
+          { id: "geo-perf", title: "Geographic Performance" },
+          {
+            id: "endpoint-perf-dist",
+            title: "Endpoint Performance Distribution",
+          },
+        ],
+        "6. Real-time Monitoring Charts": [
+          { id: "rt-rps-gauge", title: "Real-time RPS Gauge" },
+          { id: "active-users-counter", title: "Active Users Counter" },
+          { id: "current-error-rate", title: "Current Error Rate" },
+          { id: "live-resp-time", title: "Live Response Time" },
+          { id: "threshold-timeline", title: "Threshold Breach Timeline" },
+          { id: "anomaly-detect", title: "Anomaly Detection" },
+          { id: "sla-compliance", title: "SLA Compliance" },
+        ],
+        "7. Business Metrics Charts": [
+          { id: "txn-success", title: "Transaction Success Rate" },
+          { id: "journey-duration", title: "User Journey Duration" },
+          {
+            id: "process-completion",
+            title: "Business Process Completion Rate",
+          },
+          { id: "users-vs-resp-time", title: "Users vs Response Time" },
+          { id: "throughput-capacity", title: "Throughput Capacity" },
+          { id: "cost-per-user", title: "Cost per User" },
+        ],
+        "8. Custom Visualization Types": [
+          { id: "summary-cards", title: "Summary Stat Cards" },
+          { id: "perf-scorecard", title: "Performance Scorecard" },
+          { id: "top-n-slowest", title: "Top N Slowest Endpoints" },
+          { id: "exec-timeline", title: "Test Execution Timeline" },
+          { id: "event-corr-timeline", title: "Event Correlation Timeline" },
+          { id: "waterfall", title: "Waterfall Charts" },
+          { id: "hist-curve", title: "Histogram with Distribution Curve" },
+          { id: "qq-plot", title: "Quantile-Quantile (Q-Q) Plot" },
+          { id: "control-charts", title: "Control Charts" },
+        ],
+        "9. Specialized Protocol Charts": [
+          { id: "ws-conn", title: "WebSocket Connections" },
+          { id: "ws-msg-ps", title: "Messages Per Second (WebSocket)" },
+          { id: "ws-errors", title: "WebSocket Error Rates" },
+          { id: "grpc-resp-times", title: "gRPC Response Times" },
+          { id: "grpc-stream-dist", title: "Stream Duration Distribution" },
+          { id: "grpc-status-dist", title: "gRPC Status Code Distribution" },
+          { id: "db-query-duration", title: "Query Duration Percentiles" },
+          { id: "db-conn-pool-metrics", title: "Connection Pool Metrics (DB)" },
+          { id: "db-txn-rate", title: "Transaction Rate (DB)" },
+        ],
+        "10. Composite & Derived Metrics": [
+          {
+            id: "apdex",
+            title: "Apdex Score",
+            type: "solidgauge",
+            requiredData: (d) => d.summary.apdexScore,
+            options: (d) => ({
+              pane: {
+                center: ["50%", "70%"],
+                size: "100%",
+                startAngle: -90,
+                endAngle: 90,
+                background: {
+                  innerRadius: "60%",
+                  outerRadius: "100%",
+                  shape: "arc",
+                },
+              },
+              yAxis: {
+                min: 0,
+                max: 1,
+                stops: [
+                  [0.5, "#DF5353"],
+                  [0.85, "#DDDF0D"],
+                  [0.94, "#55BF3B"],
+                ],
+                lineWidth: 0,
+                tickAmount: 2,
+              },
+              plotOptions: {
+                solidgauge: {
+                  dataLabels: {
+                    y: 5,
+                    borderWidth: 0,
+                    useHTML: true,
+                    format:
+                      '<div style="text-align:center"><span style="font-size:25px">{y}</span><br/><span style="font-size:12px;opacity:0.4">T=0.5s</span></div>',
+                  },
+                },
+              },
+              series: [
+                {
+                  name: "Apdex",
+                  data: [Number(d.summary.apdexScore.toFixed(2))],
+                },
+              ],
+            }),
+          },
+          { id: "perf-index", title: "Performance Index" },
+          { id: "efficiency-ratios", title: "Efficiency Ratios" },
+          { id: "moving-avg", title: "Moving Averages" },
+          { id: "rate-of-change", title: "Rate of Change" },
+          { id: "seasonal-decomp", title: "Seasonal Decomposition" },
+        ],
+      };
+
+      // --- Main Logic ---
+      document.addEventListener("DOMContentLoaded", async () => {
+        const root = document.getElementById("dashboard-root");
+        const dataNA_HTML = `<div class="data-na-overlay">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                <h3>Data Not Available</h3>
+            </div>`;
+
+        // Create all chart containers
+        for (const [category, charts] of Object.entries(CHART_DEFINITIONS)) {
+          const sectionHeader = document.createElement("h2");
+          sectionHeader.textContent = category;
+          const grid = document.createElement("div");
+          grid.className = "dashboard-grid";
+
+          charts.forEach((chart) => {
+            const container = document.createElement("div");
+            container.id = chart.id + "-container";
+            container.className = "chart-container";
+            grid.appendChild(container);
+          });
+          root.append(sectionHeader, grid);
+        }
+
+        // Fetch data and render charts
+        let processedData;
+        try {
+          const response = await fetch("results.jsonl");
+          if (!response.ok) throw new Error("results.jsonl not found");
+          const jsonlData = await response.text();
+          processedData = processData(jsonlData);
+        } catch (error) {
+          console.warn(
+            "Could not load or process 'results.jsonl'. All charts will show N/A."
+          );
+        }
+
+        // Render loop
+        for (const charts of Object.values(CHART_DEFINITIONS)) {
+          charts.forEach((chart) => {
+            const container = document.getElementById(chart.id + "-container");
+            let dataIsAvailable = false;
+            if (processedData && chart.requiredData) {
+              const data = chart.requiredData(processedData);
+              if (data && (!Array.isArray(data) || data.length > 0)) {
+                dataIsAvailable = true;
+              }
+            }
+
+            if (dataIsAvailable) {
+              const baseOptions = { title: { text: chart.title } };
+              const chartOptions = Highcharts.merge(
+                baseOptions,
+                chart.options(processedData)
+              );
+              Highcharts.chart(container, chartOptions);
+            } else {
+              container.innerHTML = dataNA_HTML;
+              // Add title to N/A cards manually
+              const titleEl = document.createElement("h3");
+              titleEl.style.position = "absolute";
+              titleEl.style.top = "10px";
+              titleEl.style.left = "15px";
+              titleEl.style.fontSize = "16px";
+              titleEl.style.fontWeight = "normal";
+              titleEl.style.color = "#a0a0a0";
+              titleEl.textContent = chart.title;
+              container.style.position = "relative";
+              container.appendChild(titleEl);
+            }
+          });
+        }
+      });
+
+      function processData(rawData) {
+        const lines = rawData.trim().split("\n").filter(Boolean);
+        const timeSlices = {};
+        const allDurations = [];
+        const correlationData = [];
+        const checks = { passes: 0, fails: 0 };
+
+        const getSlice = (timestamp, vus) => {
+          const timeKey =
+            new Date(timestamp).toISOString().slice(0, 19) + ".000Z";
+          if (!timeSlices[timeKey]) {
+            timeSlices[timeKey] = {
+              timestamp: new Date(timeKey).getTime(),
+              durations: [],
+              vus: 0,
+              reqCount: 0,
+              failedCount: 0,
+              iterationCount: 0,
+            };
+          }
+          if (vus > 0)
+            timeSlices[timeKey].vus = Math.max(timeSlices[timeKey].vus, vus);
+          return timeSlices[timeKey];
+        };
+
+        let currentVus = 0;
+        lines.forEach((line) => {
+          const point = JSON.parse(line);
+          if (point.type !== "Point") return;
+
+          if (point.metric === "vus") currentVus = point.data.value;
+          const slice = getSlice(point.data.time, currentVus);
+
+          switch (point.metric) {
+            case "http_req_duration":
+              allDurations.push(point.data.value);
+              slice.durations.push(point.data.value);
+              correlationData.push([slice.vus, point.data.value]);
+              break;
+            case "http_reqs":
+              slice.reqCount++;
+              break;
+            case "http_req_failed":
+              if (point.data.value === 1) slice.failedCount++;
+              break;
+            case "checks":
+              point.data.value === 1 ? checks.passes++ : checks.fails++;
+              break;
+            case "iterations":
+              slice.iterationCount++;
+              break;
+          }
+        });
+
+        const sortedSlices = Object.values(timeSlices).sort(
+          (a, b) => a.timestamp - b.timestamp
+        );
+        for (let i = 1; i < sortedSlices.length; i++) {
+          if (sortedSlices[i].vus === 0)
+            sortedSlices[i].vus = sortedSlices[i - 1].vus;
+        }
+
+        const percentile = (arr, p) => {
+          if (!arr.length) return null;
+          arr.sort((a, b) => a - b);
+          const pos = (arr.length - 1) * p,
+            base = Math.floor(pos),
+            rest = pos - base;
+          if (arr[base + 1] !== undefined)
+            return arr[base] + rest * (arr[base + 1] - arr[base]);
+          return arr[base];
+        };
+
+        const apdexT = 500;
+        let satisfied = 0,
+          tolerating = 0;
+        allDurations.forEach((d) => {
+          if (d <= apdexT) satisfied++;
+          else if (d <= apdexT * 4) tolerating++;
+        });
+        const apdexScore = allDurations.length
+          ? (satisfied + tolerating / 2) / allDurations.length
+          : 0;
+
+        return {
+          summary: { apdexScore },
+          timeSeries: {
+            vus: sortedSlices.map((s) => [s.timestamp, s.vus]),
+            rps: sortedSlices.map((s) => [s.timestamp, s.reqCount]),
+            errorRate: sortedSlices.map((s) => [
+              s.timestamp,
+              s.reqCount > 0 ? (s.failedCount / s.reqCount) * 100 : 0,
+            ]),
+            iterationRate: sortedSlices.map((s) => [
+              s.timestamp,
+              s.iterationCount,
+            ]),
+            p95: sortedSlices.map((s) => [
+              s.timestamp,
+              percentile(s.durations, 0.95),
+            ]),
+            p99: sortedSlices.map((s) => [
+              s.timestamp,
+              percentile(s.durations, 0.99),
+            ]),
+            median: sortedSlices.map((s) => [
+              s.timestamp,
+              percentile(s.durations, 0.5),
+            ]),
+          },
+          distributions: {
+            allDurations: allDurations.map((d) => [d]),
+            checksRatio: [
+              { name: "Pass", y: checks.passes },
+              { name: "Fail", y: checks.fails },
+            ],
+          },
+          correlation: {
+            loadVsResponse: correlationData.filter((p) => p[0] > 0),
+          },
+        };
+      }
+    </script>
+  </body>
+</html>
