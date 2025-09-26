@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { PerformanceMetricsCollector } from "playwright-performance-metrics";
 
-test.only("has title", async ({ page }) => {
+test("has title", async ({ page }) => {
   const collector = new PerformanceMetricsCollector();
   await page.goto("https://stage.peimembership.com/", {
     waitUntil: "networkidle",
