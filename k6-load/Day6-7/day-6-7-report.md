@@ -41,9 +41,9 @@ smoke: [
 
 ```javascript
 spike: [
-    { duration: "10s", target: 20 }, // 20 VU for 10 seconds
-    { duration: "20s", target: 40 }, // sudden increase to 40 VUs
-    { duration: "5s", target: 0 }, // return to 0 VUs
+    { duration: "0s", target: 50 }, // immediate jump to 50 VUs
+    { duration: "20s", target: 50 }, // hold 50 VUs for 20s
+    { duration: "5s", target: 0 },   // ramp down
   ],
 ```
 
@@ -51,7 +51,7 @@ spike: [
 
 ```javascript
 soak: [
-    { duration: "1m", target: 40 }, // maintain 40 VUs for 30 seconds
+    { duration: "5m", target: 40 }, // maintain 40 VUs for 5 mins
   ],
 ```
 

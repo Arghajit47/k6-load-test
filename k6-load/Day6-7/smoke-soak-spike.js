@@ -2,7 +2,10 @@ import http from "k6/http";
 import { check } from "k6";
 
 // CLI env variable to run a specific type of test
-const testType = __ENV.TEST_TYPE || "smoke";
+const rawType = __ENV.TEST_TYPE || "smoke";
+const testType = String(rawType).toLowerCase();
+const resolvedType =
+  testType in (globalThis.testConfigs || {}) ? testType : "smoke";
 
 const testConfigs = {
   smoke: [
@@ -48,8 +51,9 @@ const thresholdsConfig = {
 
 // configurations
 export const options = {
-  stages: testConfigs[testType],
-  thresholds: thresholdsConfig[testType],
+  stages: testConfigs[resolvedType],
+  thresholds: thresholdsConfig[resolvedType],
+  tags: { test_type: resolvedType },
 };
 
 // The default exported function is gonna be picked up by k6 as the entry point for the test script. It will be executed repeatedly in "iterations" for the whole duration of the test.
