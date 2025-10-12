@@ -109,7 +109,8 @@ performance-metrics/
 │   ├── Day5/             # Combined features
 │   ├── Day6-7/           # Test types (smoke, soak, spike)
 │   ├── Day8/             # Ramping patterns
-│   ├── Day9-10/          # Groups and tags
+│   ├── Day9/             # Grouping
+│   ├── Day10/            # Groups and tags
 │   └── Day11/            # Custom metrics
 ├── tests/                # Playwright test files
 ├── tests-examples/       # Example test scenarios
