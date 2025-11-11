@@ -26,7 +26,7 @@ jobs:
       - name: Get PR Diff
         id: get_diff
         run: |
-          # Use the SHAs from the event payload for the most accurate diff
+
           DIFF_OUTPUT=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
 
           # This is the standard, safe way to export a multi-line variable for subsequent steps
@@ -45,7 +45,7 @@ jobs:
           # Make the diff from the previous step available to this step's shell
           PR_DIFF: ${{ env.diff_content }}
         run: |
-          # Define the prompt template. Using a separate variable makes it cleaner.
+          
           PROMPT_TEMPLATE="You are an expert code reviewer. Your goal is to provide a concise, high-level summary of the code changes and identify potential issues.
 
           Please review the following code changes (git diff format) and provide feedback. Focus on:
@@ -63,28 +63,26 @@ jobs:
           $PR_DIFF
           \`\`\`"
 
-          # Use jq to safely construct the JSON payload.
-          # --arg passes the shell variable into jq, which handles all escaping.
+       
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT_TEMPLATE" \
             '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
 
-          # Make the API call using curl.
+         
           API_RESPONSE=$(curl -s -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent?key=${GEMINI_API_KEY}")
 
-          # Extract the review content using jq.
+          
           REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
 
-          # Error handling: Check if the API returned content
+          
           if [[ -z "$REVIEW_CONTENT" || "$REVIEW_CONTENT" == "null" ]]; then
             echo "::error::Gemini API did not return valid content."
             echo "Full API Response: $API_RESPONSE"
             exit 1
           fi
 
-          # Use a Here Document to safely export the multi-line review for the next step.
-          # This writes to GITHUB_OUTPUT so the next step can use `steps.call_gemini.outputs.review_body`
+          
           echo "review_body<<EOF" >> "$GITHUB_OUTPUT"
           echo "$REVIEW_CONTENT" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
