@@ -1,59 +1,54 @@
 name: Gemini AI Code Review
 
-# This action triggers on pull requests that target the 'main' branch.
-# You can change 'main' to your repository's default branch (e.g., 'master').
+# Triggers on PRs targeting 'main'
 on:
   pull_request:
     branches: [main]
 
-# Permissions are crucial. We need to be able to write back to the pull request.
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   code-review:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the code. You need the history to run a diff.
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # Fetch the entire history to ensure we can diff between the base and head commits.
           fetch-depth: 0
 
-      # Step 2: Get the code changes from the pull request
       - name: Get PR Diff
         id: get_diff
         run: |
+          # Ensure we have the refs (checkout@v4 + fetch-depth: 0 should be enough, but be defensive)
+          git fetch origin "${{ github.event.pull_request.base.sha }}" || true
+          git fetch origin "${{ github.event.pull_request.head.sha }}" || true
 
-          DIFF_OUTPUT=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          DIFF_OUTPUT=$(git diff "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" || true)
 
-          # This is the standard, safe way to export a multi-line variable for subsequent steps
-          echo "diff_content<<EOF" >> "$GITHUB_ENV"
-          echo "$DIFF_OUTPUT" >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
+          # Publish the diff as a step output
+          echo "diff_content<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$DIFF_OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
-      # Step 3: Call the Gemini API for a code review
       - name: Call Gemini API
         id: call_gemini
-        # Only run if the diff is not empty
-        if: env.diff_content != ''
-        # Pass secrets and environment variables into the script's environment
+        if: ${{ steps.get_diff.outputs.diff_content != '' }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Make the diff from the previous step available to this step's shell
-          PR_DIFF: ${{ env.diff_content }}
+          PR_DIFF: ${{ steps.get_diff.outputs.diff_content }}
         run: |
-          
+          # Build the prompt using the PR diff
           PROMPT_TEMPLATE="You are an expert code reviewer. Your goal is to provide a concise, high-level summary of the code changes and identify potential issues.
 
           Please review the following code changes (git diff format) and provide feedback. Focus on:
-          - Potential bugs or logic errors
-          - Security vulnerabilities
-          - Performance improvements
-          - Adherence to best practices and code style
-          - Readability and maintainability
+            - Potential bugs or logic errors
+            - Security vulnerabilities
+            - Performance improvements
+            - Adherence to best practices and code style
+            - Readability and maintainability
 
           Do not comment on minor stylistic things unless they significantly impact readability.
           Structure your feedback in Markdown format. Start with a brief summary.
@@ -63,43 +58,42 @@ jobs:
           $PR_DIFF
           \`\`\`"
 
-       
+          # Build JSON payload safely with jq
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT_TEMPLATE" \
             '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
 
-         
-          API_RESPONSE=$(curl -s -H "Content-Type: application/json" \
+          # Send to Gemini
+          API_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent?key=${GEMINI_API_KEY}")
 
-          
-          REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+          REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
 
-          
-          if [[ -z "$REVIEW_CONTENT" || "$REVIEW_CONTENT" == "null" ]]; then
+          if [[ -z "$REVIEW_CONTENT" ]]; then
             echo "::error::Gemini API did not return valid content."
             echo "Full API Response: $API_RESPONSE"
             exit 1
           fi
 
-          
+          # Publish the review as a step output
           echo "review_body<<EOF" >> "$GITHUB_OUTPUT"
           echo "$REVIEW_CONTENT" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      # Step 4: Post the review as a comment on the Pull Request
       - name: Post Review Comment
-        # Only run if the previous step successfully produced an output
-        if: success() && steps.call_gemini.outputs.review_body
+        if: ${{ success() && steps.call_gemini.outputs.review_body != '' }}
         uses: actions/github-script@v7
+        env:
+          REVIEW_BODY: ${{ steps.call_gemini.outputs.review_body }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const review_body = `${{ steps.call_gemini.outputs.review_body }}`;
-
+            // Use the review body from env to avoid inlining problems
+            const reviewBody = process.env.REVIEW_BODY || '';
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### 🤖 Gemini Code Review\n\n---\n\n${review_body}`
+              body: `### 🤖 Gemini Code Review\n\n---\n\n${reviewBody}`
             });
