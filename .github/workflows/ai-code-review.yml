@@ -15,58 +15,38 @@ jobs:
   code-review:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the repository's code
+      # Step 1: Check out the code. You need the history to run a diff.
       - name: Checkout Code
         uses: actions/checkout@v4
-        # We need to fetch more than just the latest commit to get the full diff.
-        # 'fetch-depth: 0' fetches the entire git history.
         with:
+          # Fetch the entire history to ensure we can diff between the base and head commits.
           fetch-depth: 0
 
-      # Step 2: Get the diff of the pull request
+      # Step 2: Get the code changes from the pull request
       - name: Get PR Diff
         id: get_diff
         run: |
-          # The GITHUB_TOKEN is used implicitly by git/gh cli when configured.
-          # We need to fetch the base branch to be able to compare against it.
-          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-
-          # Calculate the diff and store it in a local shell variable.
-          # Use the SHAs from the event payload for accuracy.
+          # Use the SHAs from the event payload for the most accurate diff
           DIFF_OUTPUT=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
 
-          # This is the recommended, safe way to set a multi-line environment variable.
-          # It uses a here-document delimiter that is unlikely to appear in your code.
-          echo "diff_content<<DIFF_EOF" >> $GITHUB_ENV
-          echo "$DIFF_OUTPUT" >> $GITHUB_ENV
-          echo "DIFF_EOF" >> $GITHUB_ENV
+          # This is the standard, safe way to export a multi-line variable for subsequent steps
+          echo "diff_content<<EOF" >> "$GITHUB_ENV"
+          echo "$DIFF_OUTPUT" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
 
       # Step 3: Call the Gemini API for a code review
       - name: Call Gemini API
         id: call_gemini
-        # Only run this step if there is a diff.
-        # We access the environment variable set in the previous step.
+        # Only run if the diff is not empty
         if: env.diff_content != ''
+        # Pass secrets and environment variables into the script's environment
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Make the diff from the previous step available to this step's shell
+          PR_DIFF: ${{ env.diff_content }}
         run: |
-          echo "Diff content was not empty. Preparing to call API..."
-          # The PROMPT variable and curl command would go here.
-          # For example:
-          # PROMPT="You are a code reviewer. Review the following diff:
-          # \`\`\`diff
-          # ${{ env.diff_content }}
-          # \`\`\`"
-          # curl ... -d "$PROMPT"
-
-      # Step 3: Call the Gemini API for a code review
-      - name: Call Gemini API
-        id: call_gemini
-        # Only run this step if there are actual code changes.
-        if: env.diff_content != ''
-        # We use a 'curl' command to make a direct HTTP request to the Gemini API.
-        run: |
-          # The prompt is the most important part. We give the AI a persona and a clear task.
-          # We include the diff inside a code block for clarity.
-          PROMPT="You are an expert code reviewer. Your goal is to provide a concise, high-level summary of the code changes and identify potential issues.
+          # Define the prompt template. Using a separate variable makes it cleaner.
+          PROMPT_TEMPLATE="You are an expert code reviewer. Your goal is to provide a concise, high-level summary of the code changes and identify potential issues.
 
           Please review the following code changes (git diff format) and provide feedback. Focus on:
           - Potential bugs or logic errors
@@ -80,45 +60,39 @@ jobs:
 
           Here is the diff:
           \`\`\`diff
-          ${{ env.diff_content }}
-          \`\`\`
-          "
+          $PR_DIFF
+          \`\`\`"
 
-          # Prepare the JSON payload for the Gemini API.
-          # We escape the prompt to make it a valid JSON string.
-          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" \
+          # Use jq to safely construct the JSON payload.
+          # --arg passes the shell variable into jq, which handles all escaping.
+          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT_TEMPLATE" \
             '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
 
           # Make the API call using curl.
-          # The API key is securely passed from GitHub Secrets.
           API_RESPONSE=$(curl -s -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}")
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent?key=${GEMINI_API_KEY}")
 
-          # Extract just the text content from the JSON response using jq.
-          # This removes the surrounding API structure.
+          # Extract the review content using jq.
           REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
 
-          # If we got an error from the API, the content might be empty.
-          # In that case, we'll log the full error for debugging.
-          if [ -z "$REVIEW_CONTENT" ]; then
-            echo "Error: Gemini API did not return content."
+          # Error handling: Check if the API returned content
+          if [[ -z "$REVIEW_CONTENT" || "$REVIEW_CONTENT" == "null" ]]; then
+            echo "::error::Gemini API did not return valid content."
             echo "Full API Response: $API_RESPONSE"
             exit 1
           fi
 
-          # Store the final review content in a way that the next step can use it.
-          # We use another Here Document for safety.
-          {
-            echo "review_body<<EOF"
-            echo "$REVIEW_CONTENT"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          # Use a Here Document to safely export the multi-line review for the next step.
+          # This writes to GITHUB_OUTPUT so the next step can use `steps.call_gemini.outputs.review_body`
+          echo "review_body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$REVIEW_CONTENT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       # Step 4: Post the review as a comment on the Pull Request
       - name: Post Review Comment
-        # Only run if the previous step produced a review.
-        if: steps.call_gemini.outputs.review_body
+        # Only run if the previous step successfully produced an output
+        if: success() && steps.call_gemini.outputs.review_body
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -129,5 +103,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### 🤖 Gemini 2.5 Pro Code Review\n\n---\n\n${review_body}`
+              body: `### 🤖 Gemini Code Review\n\n---\n\n${review_body}`
             });
