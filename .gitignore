@@ -6,3 +6,4 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+k6-load/DemoBlaze/summary.html

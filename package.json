@@ -2,18 +2,23 @@
   "name": "performance-metrics",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "k6-run": "k6 run k6-load/DemoBlaze/test-scenarios.js || true"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
     "@playwright/test": "^1.55.0",
-    "@types/node": "^24.5.2"
+    "@types/node": "^24.5.2",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "@arghajit/playwright-pulse-report": "^0.2.6",
     "better-sqlite3": "^12.4.1",
+    "k6-html-reporter": "^1.0.5",
     "playwright-performance-metrics": "^1.2.2",
     "pulse-dashboard": "^1.1.4"
   }
