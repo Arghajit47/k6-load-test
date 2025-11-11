@@ -23,21 +23,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Step 2: Get the code changes (the "diff") from the pull request
+      # Step 2: Get the diff of the pull request
       - name: Get PR Diff
         id: get_diff
         run: |
-          # Compare the pull request's head commit with its base commit.
-          # This gives us the exact changes introduced in the PR.
-          diff_output=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          # The GITHUB_TOKEN is used implicitly by git/gh cli when configured.
+          # We need to fetch the base branch to be able to compare against it.
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
 
-          # Use a "Here Document" to safely handle multi-line diffs and special characters.
-          # This stores the diff in a GitHub Actions environment variable.
-          {
-            echo "diff_content<<EOF"
-            echo "$diff_output"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          # Calculate the diff and store it in a local shell variable.
+          # Use the SHAs from the event payload for accuracy.
+          DIFF_OUTPUT=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+
+          # This is the recommended, safe way to set a multi-line environment variable.
+          # It uses a here-document delimiter that is unlikely to appear in your code.
+          echo "diff_content<<DIFF_EOF" >> $GITHUB_ENV
+          echo "$DIFF_OUTPUT" >> $GITHUB_ENV
+          echo "DIFF_EOF" >> $GITHUB_ENV
+
+      # Step 3: Call the Gemini API for a code review
+      - name: Call Gemini API
+        id: call_gemini
+        # Only run this step if there is a diff.
+        # We access the environment variable set in the previous step.
+        if: env.diff_content != ''
+        run: |
+          echo "Diff content was not empty. Preparing to call API..."
+          # The PROMPT variable and curl command would go here.
+          # For example:
+          # PROMPT="You are a code reviewer. Review the following diff:
+          # \`\`\`diff
+          # ${{ env.diff_content }}
+          # \`\`\`"
+          # curl ... -d "$PROMPT"
 
       # Step 3: Call the Gemini API for a code review
       - name: Call Gemini API
