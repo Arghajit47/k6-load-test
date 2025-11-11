@@ -1,0 +1,115 @@
+name: Gemini AI Code Review
+
+# This action triggers on pull requests that target the 'main' branch.
+# You can change 'main' to your repository's default branch (e.g., 'master').
+on:
+  pull_request:
+    branches: [main]
+
+# Permissions are crucial. We need to be able to write back to the pull request.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the repository's code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        # We need to fetch more than just the latest commit to get the full diff.
+        # 'fetch-depth: 0' fetches the entire git history.
+        with:
+          fetch-depth: 0
+
+      # Step 2: Get the code changes (the "diff") from the pull request
+      - name: Get PR Diff
+        id: get_diff
+        run: |
+          # Compare the pull request's head commit with its base commit.
+          # This gives us the exact changes introduced in the PR.
+          diff_output=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+
+          # Use a "Here Document" to safely handle multi-line diffs and special characters.
+          # This stores the diff in a GitHub Actions environment variable.
+          {
+            echo "diff_content<<EOF"
+            echo "$diff_output"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      # Step 3: Call the Gemini API for a code review
+      - name: Call Gemini API
+        id: call_gemini
+        # Only run this step if there are actual code changes.
+        if: env.diff_content != ''
+        # We use a 'curl' command to make a direct HTTP request to the Gemini API.
+        run: |
+          # The prompt is the most important part. We give the AI a persona and a clear task.
+          # We include the diff inside a code block for clarity.
+          PROMPT="You are an expert code reviewer. Your goal is to provide a concise, high-level summary of the code changes and identify potential issues.
+
+          Please review the following code changes (git diff format) and provide feedback. Focus on:
+          - Potential bugs or logic errors
+          - Security vulnerabilities
+          - Performance improvements
+          - Adherence to best practices and code style
+          - Readability and maintainability
+
+          Do not comment on minor stylistic things unless they significantly impact readability.
+          Structure your feedback in Markdown format. Start with a brief summary.
+
+          Here is the diff:
+          \`\`\`diff
+          ${{ env.diff_content }}
+          \`\`\`
+          "
+
+          # Prepare the JSON payload for the Gemini API.
+          # We escape the prompt to make it a valid JSON string.
+          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" \
+            '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
+
+          # Make the API call using curl.
+          # The API key is securely passed from GitHub Secrets.
+          API_RESPONSE=$(curl -s -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}")
+
+          # Extract just the text content from the JSON response using jq.
+          # This removes the surrounding API structure.
+          REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+
+          # If we got an error from the API, the content might be empty.
+          # In that case, we'll log the full error for debugging.
+          if [ -z "$REVIEW_CONTENT" ]; then
+            echo "Error: Gemini API did not return content."
+            echo "Full API Response: $API_RESPONSE"
+            exit 1
+          fi
+
+          # Store the final review content in a way that the next step can use it.
+          # We use another Here Document for safety.
+          {
+            echo "review_body<<EOF"
+            echo "$REVIEW_CONTENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Step 4: Post the review as a comment on the Pull Request
+      - name: Post Review Comment
+        # Only run if the previous step produced a review.
+        if: steps.call_gemini.outputs.review_body
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const review_body = `${{ steps.call_gemini.outputs.review_body }}`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### 🤖 Gemini 2.5 Pro Code Review\n\n---\n\n${review_body}`
+            });
