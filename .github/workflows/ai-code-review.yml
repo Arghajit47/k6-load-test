@@ -38,7 +38,7 @@ jobs:
         run: |
           # Decode diff
           PR_DIFF=$(echo "$ENCODED_DIFF" | base64 --decode)
-          
+
           # Create prompt with proper heredoc syntax
           cat << 'EOF' > prompt.txt
           You are an expert code reviewer. Provide a concise, high-level review of the following code changes in Git diff format.
@@ -66,7 +66,7 @@ jobs:
           echo "Sending request to Gemini API..."
           API_RESPONSE=$(curl -sS -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-latest:generateContent?key=${GEMINI_API_KEY}")
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}")
 
           REVIEW_CONTENT=$(echo "$API_RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
 
