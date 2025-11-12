@@ -90,6 +90,8 @@ jobs:
           Your refactoring suggestions should enhance code maintainability for future developers while respecting the original author's intent. Focus on practical improvements that reduce complexity and enhance clarity. If you encounter code that is already well-structured, provide feedback on its strengths instead of suggesting unnecessary changes.
 
           Focus on:
+          - Don't ask any questions, just directly analyze the code diff, and all the suggestions should be valid.
+            - Wherever the refactoring suggestions are being given kindly mention the file name, current code position, and refactored code suggestions.
             - Potential bugs or logic errors
             - Security vulnerabilities
             - Performance improvements
