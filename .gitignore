@@ -7,3 +7,8 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 k6-load/DemoBlaze/summary.html
+pulse-report/playwright-pulse-report.json
+pulse-report/playwright-pulse-static-report.html
+pulse-report/history/trend-1763027217266.json
+pulse-report/history/trend-1763027372998.json
+summary.html

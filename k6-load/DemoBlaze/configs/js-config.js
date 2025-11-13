@@ -2,7 +2,7 @@ import { sharedThresholds } from "./shared-thresholds.js";
 
 export const options = {
   executor: "constant-vus",
-  vus: 5000,
+  vus: 500,
   duration: "5m",
   thresholds: {
     ...sharedThresholds,

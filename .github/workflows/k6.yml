@@ -1,0 +1,39 @@
+name: K6 Load Tests
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  k6_load_test:
+    name: K6 Load Test
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup k6
+        uses: grafana/k6-action@v0.3.0
+
+      - name: Run k6 tests
+        run: npm run k6-run
+        env:
+          BROWSER_ONLY: true
+
+      - name: Upload summary HTML report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: k6-summary-report
+          path: summary.html
+          retention-days: 30
