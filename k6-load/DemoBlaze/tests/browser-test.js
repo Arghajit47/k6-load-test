@@ -42,7 +42,7 @@ export default async function testBrowser() {
 
     // Basic check to see if page loaded
     check(page, {
-      "page loaded": () => page.url().includes('demoblaze.com'), // Check that we landed on the correct site
+      "page loaded": () => page.url().includes("test.k6.io"), // Check that we landed on the correct site
     });
 
     // Collect performance metrics using browser APIs with more robust error handling
