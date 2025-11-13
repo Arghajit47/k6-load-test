@@ -1,5 +1,23 @@
 # Performance Testing Incidents Report
 
+## Incident 14: Missing Chrome/Chromium Browser in CI Environment
+
+**Timestamp:** 2023-11-13 13:06:16
+
+**Description:**  
+In GitHub Actions workflow, the k6 browser tests failed with error "error building browser on IterStart: finding browser executable: k6 couldn't detect google chrome or a chromium-supported browser on this system". This caused all browser performance metrics (domComplete, firstContentfulPaint, loadTime, timeToFirstByte) to report as zero, preventing meaningful performance analysis.
+
+**Solution:**
+
+- Added Chrome installation step to GitHub Actions workflow using browser-actions/setup-chrome@v1
+- Added verification step to confirm Chrome installation before test execution
+- Kept the existing k6 action configuration with BROWSER_ONLY flag
+
+**Resolution:**  
+By explicitly installing Chrome in the GitHub Actions workflow, browser-based performance tests can now access the required browser executable, allowing proper collection of browser performance metrics.
+
+---
+
 ## Incident 1: Configuration Duplication
 
 **Timestamp:** 2023-05-15 09:30:00

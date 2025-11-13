@@ -21,6 +21,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      
+      - name: Verify Chrome installation
+        run: chrome --version
 
       - name: Run k6 tests with k6 action
         uses: grafana/k6-action@v0.3.0
