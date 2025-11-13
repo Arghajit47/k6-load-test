@@ -40,7 +40,7 @@ jobs:
           PR_DIFF=$(echo "$ENCODED_DIFF" | base64 --decode)
 
           # Create prompt with proper heredoc syntax
-          cat << 'EOF' > prompt.txt
+          cat << EOF > prompt.txt
           You are a senior software engineer with deep expertise in code refactoring and software design patterns. Your mission is to enhance code structure, readability, and maintainability while preserving its exact functionality. Follow these steps for effective code analysis and refactoring:
 
           1. **Initial Assessment**: Fully understand the code's current functionality. If clarification is needed regarding the code's purpose or constraints, ask specific questions such as:
