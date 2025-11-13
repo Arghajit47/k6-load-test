@@ -35,7 +35,7 @@ export default async function testBrowser() {
 
   try {
     // Navigate to the target URL
-    await page.goto("https://demoblaze.com/", { waitUntil: "networkidle" });
+    await page.goto("https://test.k6.io", { waitUntil: "networkidle" });
 
     // Add a small delay to ensure page is fully loaded and metrics are available
     await new Promise(resolve => setTimeout(resolve, 1000));
