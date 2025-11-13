@@ -1,5 +1,23 @@
 # Performance Testing Incidents Report
 
+## Incident 15: GitHub Actions k6 Docker Volume Integration
+
+**Timestamp:** 2023-11-14 14:21:38
+
+**Description:**  
+After installing Chrome in the GitHub Actions runner, the k6 Docker container still couldn't access the browser executable. This was because the Docker container used by grafana/k6-action@v0.3.0 runs in an isolated environment without access to the host system's Chrome installation.
+
+**Solution:**
+
+- Modified the k6 action configuration to add Docker volume mounting
+- Used `-v /opt/hostedtoolcache/chrome:/opt/hostedtoolcache/chrome` to mount Chrome directory from host to container
+- Set environment variable `-e CHROME_PATH=/opt/hostedtoolcache/chrome/stable/x64/chrome` to tell k6 where to find Chrome
+
+**Resolution:**  
+The Docker volume mount successfully made the Chrome browser available inside the k6 container, allowing browser performance tests to execute properly and collect accurate metrics in the CI environment.
+
+---
+
 ## Incident 14: Missing Chrome/Chromium Browser in CI Environment
 
 **Timestamp:** 2023-11-13 13:06:16
@@ -11,10 +29,11 @@ In GitHub Actions workflow, the k6 browser tests failed with error "error buildi
 
 - Added Chrome installation step to GitHub Actions workflow using browser-actions/setup-chrome@v1
 - Added verification step to confirm Chrome installation before test execution
-- Kept the existing k6 action configuration with BROWSER_ONLY flag
+- Configured the k6 action with dockerArgs to mount Chrome from the host system into the Docker container
+- Added environment variable CHROME_PATH to point to the Chrome executable location
 
 **Resolution:**  
-By explicitly installing Chrome in the GitHub Actions workflow, browser-based performance tests can now access the required browser executable, allowing proper collection of browser performance metrics.
+By explicitly installing Chrome in the GitHub Actions workflow and properly mounting it into the k6 Docker container, browser-based performance tests can now access the required browser executable, allowing proper collection of browser performance metrics.
 
 ---
 
