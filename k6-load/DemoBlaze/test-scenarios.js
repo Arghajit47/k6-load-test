@@ -27,7 +27,7 @@ export const options = {
         browser: {
           type: "chromium",
           headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
         },
       },
       tags: browserOptions.tags || { test_type: "browser_performance" },
@@ -42,7 +42,7 @@ export const options = {
         browser: {
           type: "chromium",
           headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
         },
       },
       tags: browserOptions.tags || { test_type: "browser_performance" },
