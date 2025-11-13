@@ -20,7 +20,7 @@ jobs:
     - name: Run Playwright tests
       run: npx playwright test
     - name: Run pulse report generation
-      run: npx playwright test
+      run: npm run pulse-report
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:

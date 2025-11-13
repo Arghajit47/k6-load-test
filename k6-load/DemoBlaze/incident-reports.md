@@ -212,3 +212,22 @@ Needed to verify that the browser scenario could be run in isolation using the `
 
 **Resolution:**  
 Successfully confirmed that `test-scenarios.js` is now properly configured to run only the browser scenario when `BROWSER_ONLY=true` is provided, with all tests passing.
+
+---
+
+## Incident 13: GitHub Actions Workflow File Path Issue
+
+**Timestamp:** 2023-09-15 14:20:00
+
+**Description:**  
+The GitHub Actions workflow using `grafana/k6-action@v0.3.0` failed to find the `test.js` module specifier locally, indicating that the script or modules were not properly mounted or located within the Docker container used by the action.
+
+**Solution:**
+
+- Examined the `k6.yml` workflow file to understand how test file paths were specified
+- Identified that the k6 action was looking for `test.js` by default while the workflow was using `npm run k6-run` to execute `k6-load/DemoBlaze/test-scenarios.js`
+- Modified the workflow to explicitly pass both the test file path and environment variables to the k6 action
+- Integrated the k6 test execution directly into the `grafana/k6-action@v0.3.0` step using both `filename` and `flags` parameters
+
+**Resolution:**  
+Successfully resolved the file path issue by consolidating the k6 setup and execution into a single action step that properly references the test script path and passes the required environment variables.

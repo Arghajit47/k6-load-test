@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { PerformanceMetricsCollector } from "playwright-performance-metrics";
 
-export function createTest() {
+
   test("has title", async ({ page }) => {
     const collector = new PerformanceMetricsCollector();
     await page.goto("https://stage.peimembership.com/", {
@@ -29,7 +29,7 @@ export function createTest() {
     });
   });
 
-  test.skip("get started link", async ({ page }) => {
+  test("get started link", async ({ page }) => {
     await page.goto("https://playwright.dev/");
 
     // Click the get started link.
@@ -40,5 +40,5 @@ export function createTest() {
       page.getByRole("heading", { name: "Installation" })
     ).toBeVisible();
   });
-}
+
 
