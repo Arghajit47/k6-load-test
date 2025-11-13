@@ -15,7 +15,14 @@ export const options = {
     default: {
       executor: browserOptions.executor,
       vus: browserOptions.vus,
-      options: browserOptions.options,
+      options: {
+        ...browserOptions.options,
+        browser: {
+          type: "chromium",
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+        },
+      },
     }
   },
   thresholds: browserOptions.thresholds,

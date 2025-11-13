@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "k6-run": "k6 run k6-load/DemoBlaze/test-scenarios.js --env BROWSER_ONLY=true || true",
+    "k6-run": "k6 run k6-load/DemoBlaze/test-scenarios.js || true",
     "pulse-report": "generate-pulse-report"
   },
   "keywords": [],
