@@ -47,6 +47,9 @@ jobs:
           echo "This is the default path used by browser-actions/setup-chrome"
           export CHROME_PATH="/opt/hostedtoolcache/chrome/stable/x64/chrome"
 
+          echo "Add --no-sandbox flag to prevent Chrome from crashing in the CI environment"
+          export K6_BROWSER_ARGS="--no-sandbox"
+
           echo "Run your k6 test"
           npm run k6-run
       # --- END OF FIX ---
