@@ -48,9 +48,11 @@ jobs:
           export CHROME_PATH="/opt/hostedtoolcache/chrome/stable/x64/chrome"
 
           echo "Add --no-sandbox flag to prevent Chrome from crashing in the CI environment"
-          export K6_BROWSER_ARGS="--no-sandbox"
+          export K6_BROWSER_ARGS="--no-sandbox,--disable-dev-shm-usage,--disable-gpu"
 
           echo "Run your k6 test"
+          echo "Using Chrome from: $CHROME_PATH"
+          echo "Using Browser Args: $K6_BROWSER_ARGS"
           npm run k6-run
       # --- END OF FIX ---
       - name: Upload summary HTML report
