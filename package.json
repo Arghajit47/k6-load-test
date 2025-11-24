@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "k6-run": "k6 run k6-load/DemoBlaze/test-scenarios.js || true"
+    "k6-run": "K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=false K6_WEB_DASHBOARD_EXPORT=report.html k6 run k6-load/DemoBlaze/test-scenarios.js || true",
+    "pulse-report": "generate-pulse-report"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +19,7 @@
   "dependencies": {
     "@arghajit/playwright-pulse-report": "^0.2.6",
     "better-sqlite3": "^12.4.1",
+    "dotenv": "^17.2.3",
     "k6-html-reporter": "^1.0.5",
     "playwright-performance-metrics": "^1.2.2",
     "pulse-dashboard": "^1.1.4"

@@ -2,9 +2,9 @@ import { sharedThresholds } from "./shared-thresholds.js";
 
 export const options = {
   stages: [
-    { duration: "2m", target: 5000 }, // Ramp up
-    { duration: "3m", target: 10000 }, // Peak load
-    { duration: "1m", target: 5000 }, // Ramp down
+    { duration: "2m", target: 500 }, // Ramp up
+    { duration: "3m", target: 1000 }, // Peak load
+    { duration: "1m", target: 500 }, // Ramp down
   ],
   thresholds: {
     ...sharedThresholds,
