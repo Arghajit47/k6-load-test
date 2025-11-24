@@ -26,7 +26,7 @@ export default function testBrowser() {
     let res = http.get(
       `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url1}&key=${pageSpeedApiKey}`,
       {
-        tags: { endpoint: ["browser", "homePage"], type: "page" },
+        tags: { endpoint: "browser_homePage", type: "page" },
       }
     );
     responses.push(res);
@@ -35,8 +35,21 @@ export default function testBrowser() {
       "Landing page html api status is successful": (r) => r.status === 200,
     });
     check(res, {
-      "Landing page html api performance score is above 0.8": (r) =>
-        r.json().lighthouseResult.categories.performance.score >= 0.8,
+      "Landing page html api performance score is above 0.8": (r) => {
+        try {
+          const data = r.json();
+          return (
+            data &&
+            data.lighthouseResult &&
+            data.lighthouseResult.categories &&
+            data.lighthouseResult.categories.performance &&
+            data.lighthouseResult.categories.performance.score >= 0.8
+          );
+        } catch (e) {
+          console.log("Error parsing performance score: ", e);
+          return false;
+        }
+      },
     });
   });
 
@@ -44,7 +57,7 @@ export default function testBrowser() {
     let res = http.get(
       `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url2}&key=${pageSpeedApiKey}`,
       {
-        tags: { endpoint: ["browser", "electronics"], type: "page" },
+        tags: { endpoint: "browser_electronics", type: "page" },
       }
     );
     responses.push(res);
@@ -53,8 +66,21 @@ export default function testBrowser() {
       "Electronics page html api status is successful": (r) => r.status === 200,
     });
     check(res, {
-      "Electronics page html api performance score is above 0.8": (r) =>
-        r.json().lighthouseResult.categories.performance.score >= 0.8,
+      "Electronics page html api performance score is above 0.8": (r) => {
+        try {
+          const data = r.json();
+          return (
+            data &&
+            data.lighthouseResult &&
+            data.lighthouseResult.categories &&
+            data.lighthouseResult.categories.performance &&
+            data.lighthouseResult.categories.performance.score >= 0.8
+          );
+        } catch (e) {
+          console.log("Error parsing performance score: ", e);
+          return false;
+        }
+      },
     });
   });
 

@@ -62,3 +62,11 @@ jobs:
           name: k6-summary-report
           path: summary.html
           retention-days: 30
+
+      - name: Upload report HTML report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: k6-own-report
+          path: report.html
+          retention-days: 30    

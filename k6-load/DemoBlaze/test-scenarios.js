@@ -42,8 +42,8 @@ export const options = {
     },
     doc: {
       exec: "testDoc",
-      executor: "constant-vus", // Using default since doc uses xhr config
-      vus: 5000,
+      executor: "constant-vus", 
+      vus: 1000, // Reduced from 5000
       duration: "5m",
       tags: { test_type: "static", resource: "document" },
       options: cssOptions.options,

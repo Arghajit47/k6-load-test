@@ -14,7 +14,7 @@ export default function testCss() {
         tags: { endpoint: "css", type: "api" },
       }
     );
-    responses.push(res1);
+    responses.push(res);
 
     check(res, {
       "NopCommerce CSS API responds": (r) => r.status === 200,
