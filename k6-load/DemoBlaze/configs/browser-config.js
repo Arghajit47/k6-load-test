@@ -1,24 +1,23 @@
 import { sharedThresholds } from "./shared-thresholds.js";
 
+// Define variables before using them
+const rate = 5; // Total of 5 iterations
+const duration = __ENV.TEST_DURATION || "5m"; // Default to 5 minutes if not specified
+const timeUnit = __ENV.TEST_DURATION ? `${__ENV.TEST_DURATION / rate}m` : "1m"; // Calculate properly
+
 export const options = {
-  executor: "per-vu-iterations",
-  vus: 1,
-  options: {
-    browser: {
-      type: "chromium",
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-    },
-  },
-  thresholds: {
-    ...sharedThresholds,
-    "browser_performance_firstContentfulPaint": ["p(95)<3000"], // FCP adjusted based on actual performance
-    "browser_performance_domComplete": ["p(95)<2000"], // DOM complete adjusted for headless mode
-    "browser_performance_loadTime": ["p(95)<2000"], // Load time adjusted for headless mode
-    "browser_performance_timeToFirstByte": ["p(95)<500"], // TTFB threshold added
-  },
+  // Change to constant-arrival-rate to distribute 5 iterations throughout the test duration
+  executor: "constant-arrival-rate",
+  rate: rate,
+  duration: duration,
+  timeUnit: timeUnit,
+  preAllocatedVUs: 1,
+  maxVUs: 2, // Allow for slight concurrency if needed
   tags: {
     test_type: "browser_performance",
     priority: "high",
+  },
+  thresholds: {
+    ...sharedThresholds,
   },
 };

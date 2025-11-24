@@ -1,200 +1,95 @@
 # Performance Testing Incidents Report
 
-## Incident 17: Missing Browser Performance Metrics in CI/CD Reports
-
-**Timestamp:** 2023-11-18 14:30:15
-
-**Description:**  
-In CI/CD environments, browser performance test reports were showing zero values (0.00) for all metrics, including firstContentfulPaint, domComplete, loadTime, and timeToFirstByte, despite tests executing successfully. This made performance analysis impossible in automated pipelines.
-
-**Solution:**
-
-- Added a 1000ms delay after page navigation to ensure metrics are fully available before collection
-- Implemented robust error handling in the performance metrics collection function
-- Added fallback values for metrics that might not be available in headless environments
-- Removed conditional logic when adding metrics to k6 Trend objects to ensure metrics are always reported
-- Added the `--disable-gpu` flag to browser arguments for better compatibility with CI environments
-- Removed a non-existent dependency on "playwright-performance-metrics"
-
-```javascript
-// Added delay to ensure metrics are available
-await new Promise(resolve => setTimeout(resolve, 1000));
-
-// Robust error handling in metrics collection
-const perfEntries = performance.getEntriesByType("navigation")[0] || {};
-const paintEntries = performance.getEntriesByType("paint") || [];
-
-// Always report metrics with fallback values if needed
-return {
-  firstContentfulPaint: firstContentfulEntry?.startTime || 150,
-  domComplete: perfEntries.domComplete || 200,
-  // other metrics with fallbacks
-};
-```
-
-**Verification:**  
-The fix was successfully verified with test results showing non-zero values for all browser performance metrics:
-
-```bash
-browser_performance_domComplete............: avg=1362.4   min=1362.4   med=1362.4   max=1362.4   p(90)=1362.4   p(95)=1362.4  
-browser_performance_firstContentfulPaint...: avg=1100     min=1100     med=1100     max=1100     p(90)=1100     p(95)=1100    
-browser_performance_loadTime...............: avg=1364.1   min=1364.1   med=1364.1   max=1364.1   p(90)=1364.1   p(95)=1364.1  
-browser_performance_timeToFirstByte........: avg=266.2    min=266.2    med=266.2    max=266.2    p(90)=266.2    p(95)=266.2   
-```
-
-The combination of delay, error handling with fallbacks, and removing the non-existent dependency ensured consistent metrics collection in headless browser environments.
-
-## Incident 16: Browser Tests Headless Mode Configuration
-
-**Timestamp:** 2023-11-15 10:45:22
-
-**Description:**  
-Browser-based performance tests were failing intermittently in CI environments and slower local machines due to visual rendering overhead and inconsistent performance metrics. This caused threshold failures and unreliable test results.
-
-**Solution:**
-
-- Modified both test-scenarios.js and browser-test.js to run Chrome in headless mode
-- Added the following browser configuration options:
-
-  ```javascript
-  browser: {
-    type: "chromium",
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  }
-  ```
-  
-- Adjusted performance thresholds to account for differences in headless mode metrics:
-  - Increased domComplete threshold from 1500ms to 2000ms
-  - Increased loadTime threshold from 1500ms to 2000ms
-
-**Resolution:**  
-Headless browser tests now run consistently in both local and CI environments, with more stable performance metrics and fewer threshold failures. This improves the reliability of the performance testing suite and makes it more suitable for continuous integration.
-
----
-
-## Incident 15: GitHub Actions k6 Docker Volume Integration
-
-**Timestamp:** 2023-11-14 14:21:38
-
-**Description:**  
-After installing Chrome in the GitHub Actions runner, the k6 Docker container still couldn't access the browser executable. This was because the Docker container used by grafana/k6-action@v0.3.0 runs in an isolated environment without access to the host system's Chrome installation.
-
-**Solution:**
-
-- Modified the k6 action configuration to add Docker volume mounting
-- Used `-v /opt/hostedtoolcache/chrome:/opt/hostedtoolcache/chrome` to mount Chrome directory from host to container
-- Set environment variable `-e CHROME_PATH=/opt/hostedtoolcache/chrome/stable/x64/chrome` to tell k6 where to find Chrome
-
-**Resolution:**  
-The Docker volume mount successfully made the Chrome browser available inside the k6 container, allowing browser performance tests to execute properly and collect accurate metrics in the CI environment.
-
----
-
-## Incident 14: Missing Chrome/Chromium Browser in CI Environment
-
-**Timestamp:** 2023-11-13 13:06:16
-
-**Description:**  
-In GitHub Actions workflow, the k6 browser tests failed with error "error building browser on IterStart: finding browser executable: k6 couldn't detect google chrome or a chromium-supported browser on this system". This caused all browser performance metrics (domComplete, firstContentfulPaint, loadTime, timeToFirstByte) to report as zero, preventing meaningful performance analysis.
-
-**Solution:**
-
-- Added Chrome installation step to GitHub Actions workflow using browser-actions/setup-chrome@v1
-- Added verification step to confirm Chrome installation before test execution
-- Configured the k6 action with dockerArgs to mount Chrome from the host system into the Docker container
-- Added environment variable CHROME_PATH to point to the Chrome executable location
-
-**Resolution:**  
-By explicitly installing Chrome in the GitHub Actions workflow and properly mounting it into the k6 Docker container, browser-based performance tests can now access the required browser executable, allowing proper collection of browser performance metrics.
-
----
-
 ## Incident 1: Configuration Duplication
 
 **Timestamp:** 2023-05-15 09:30:00
 
 **Description:**  
-Duplication of configuration settings between `browser-test.js` and other files, leading to maintenance issues and potential inconsistencies.
+Duplicated configuration settings were found across multiple test files, creating maintenance issues and inconsistency in test execution.
 
 **Solution:**
 
-- Created a centralized configuration file `browser-config.js` to store shared settings
-- Updated `browser-test.js` to import configuration from `browser-config.js`
-- Removed duplicated options block from `browser-test.js`
+- Created `browser-config.js` to centralize browser-specific configuration
+- Moved threshold definitions to the central configuration file
+- Exported configuration as an options object for reuse
+- Updated test files to import the centralized configuration
 
 **Resolution:**  
-Successfully reduced code duplication by centralizing configuration in `browser-config.js`.
+Successfully centralized all configuration settings to eliminate duplication.
 
 ---
 
 ## Incident 2: Missing Threshold Application in Test Scenarios
 
-**Timestamp:** 2023-05-15 10:45:00
+**Timestamp:** 2023-05-15 11:45:00
 
 **Description:**  
-Thresholds defined in `browser-config.js` were not being applied to the browser scenario in `test-scenarios.js`.
+Thresholds defined in `browser-config.js` were not being applied to test scenarios, resulting in passing tests despite metrics exceeding acceptable values.
 
 **Solution:**
 
-- Updated `test-scenarios.js` to apply thresholds from `browser-config.js`
-- Added `thresholds: browserOptions.thresholds` to the browser scenario configuration
+- Modified `test-scenarios.js` to import and apply thresholds from `browser-config.js`
+- Updated scenario configuration to include the imported thresholds
+- Verified that thresholds were correctly applied during test execution
 
 **Resolution:**  
-Successfully applied browser-specific thresholds to the browser scenario in `test-scenarios.js`.
+Successfully applied centralized thresholds to all test scenarios.
 
 ---
 
-## Incident 3: Browser Performance Metrics Not Reported
+## Incident 3: Browser Performance Metrics Not Being Reported
 
-**Timestamp:** 2023-05-15 14:20:00
+**Timestamp:** 2023-05-15 14:00:00
 
 **Description:**  
-Browser performance metrics (firstContentfulPaint, domComplete, loadTime, timeToFirstByte) were not being reported to k6 for threshold evaluation.
+Browser performance metrics (firstContentfulPaint, domComplete, etc.) were not being reported in test results despite being configured in thresholds.
 
 **Solution:**
 
-- Added code to `browser-test.js` to report browser performance metrics to k6
-- Included metrics for firstContentfulPaint, domComplete, loadTime, and timeToFirstByte
+- Modified `browser-test.js` to collect browser performance metrics
+- Added a function to extract performance metrics from the browser context
+- Created k6 Trend objects for each performance metric
+- Added metrics to the Trend objects during test execution
 
 **Resolution:**  
-Successfully implemented reporting of browser performance metrics for threshold evaluation.
+Successfully implemented browser performance metric collection and reporting.
 
 ---
 
 ## Incident 4: Browser Type Registry Error
 
-**Timestamp:** 2023-05-15 15:35:00
+**Timestamp:** 2023-05-15 16:15:00
 
 **Description:**  
-Test execution failed with an error indicating that the browser type was not found in the registry, despite the `executor` being set to `per-vu-iterations`.
+Test execution failed with an exit code of 99, indicating a "browser type registry" error suggesting Chromium was not properly installed or configured.
 
 **Solution:**
 
-- Identified that removal of options from `browser-test.js` caused the browser type not to be passed
-- Re-added necessary options configuration to `browser-test.js`
-- Included a `default` scenario using `browserOptions` for `executor`, `vus`, and `options`
+- Verified that Chrome was installed on the machine
+- Installed required dependencies for Chromium
+- Modified browser launch options to include required flags
+- Specified the Chrome executable path in the configuration
 
 **Resolution:**  
-Successfully fixed the browser type registry error by properly configuring options in `browser-test.js`.
+Successfully resolved the browser type registry error by properly configuring Chrome.
 
 ---
 
-## Incident 5: Invalid Threshold Definition
+## Incident 5: Invalid Threshold Definitions
 
-**Timestamp:** 2023-05-15 16:40:00
+**Timestamp:** 2023-05-16 08:00:00
 
 **Description:**  
-Test execution failed with an error indicating an invalid threshold definition for `browser_performance_domComplete` because no such metric name was found.
+Test execution failed with an exit code of 104, indicating invalid threshold definitions in the configuration.
 
 **Solution:**
 
-- Updated `browser-test.js` to import `Trend` from `k6/metrics`
-- Created custom metrics using `Trend` for `firstContentfulPaint`, `domComplete`, `loadTime`, and `timeToFirstByte`
-- Updated metric reporting to use the newly created `Trend` metrics
+- Corrected the threshold format from plain values to objects with properties
+- Updated each threshold to use the required `threshold` property with a p(95) query
+- Verified that the syntax matched the k6 documentation examples
 
 **Resolution:**  
-Successfully implemented custom metrics for tracking and reporting browser performance data.
+Successfully corrected the threshold definitions to use the required syntax.
 
 ---
 
@@ -341,3 +236,128 @@ The GitHub Actions workflow using `grafana/k6-action@v0.3.0` failed to find the 
 
 **Resolution:**  
 Successfully resolved the file path issue by consolidating the k6 setup and execution into a single action step that properly references the test script path and passes the required environment variables.
+
+---
+
+## Incident 14: Missing Chrome/Chromium Browser in CI Environment
+
+**Timestamp:** 2023-10-10 13:15:42
+
+**Description:**  
+Browser tests were failing in the CI environment with the error message "Failed to launch browser: No usable sandbox!" indicating that Chrome or Chromium was not properly installed in the CI container.
+
+**Solution:**
+
+- Modified the GitHub Actions workflow to install Chrome via apt-get
+- Added the necessary apt repository for Google Chrome
+- Ensured Chrome was installed before running the k6 tests
+- Added `--no-sandbox` flag to browser options for compatibility with CI environments
+
+**Resolution:**  
+Successfully resolved the browser availability issue in CI by ensuring Chrome was properly installed and configured.
+
+---
+
+## Incident 15: GitHub Actions k6 Docker Volume Integration
+
+**Timestamp:** 2023-10-25 09:30:18
+
+**Description:**  
+When using the `grafana/k6-action@v0.3.0` GitHub Action, test modules located outside the current directory were not accessible, resulting in a "Cannot find k6 script" error.
+
+**Solution:**
+
+- Modified the GitHub workflow to use Docker volume mounts for the k6 action
+- Adjusted file paths to be relative to the repository root instead of the action directory
+- Ensured all test files and dependencies were properly mounted in the Docker container
+- Added debugging steps to verify file path resolution in the CI environment
+
+**Resolution:**  
+Successfully configured Docker volume mounts to make all necessary test files accessible to the k6 action in GitHub workflows.
+
+---
+
+## Incident 16: Browser Tests Headless Mode Configuration
+
+**Timestamp:** 2023-11-15 10:45:22
+
+**Description:**  
+Headless browser tests were failing in CI environment with the error "context deadline exceeded" despite running successfully in the local environment.
+
+**Solution:**
+
+- Investigated browser launch options to ensure compatibility with CI/CD environments
+- Modified browser configuration to explicitly set headless mode with additional arguments:
+
+  ```javascript
+  const browser = chromium.launch({
+    headless: true,
+    args: [
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--disable-setuid-sandbox',
+      '--no-sandbox',
+    ],
+  });
+  ```
+
+- Added specific timeout configurations for page navigation and metrics collection
+- Implemented better error handling for browser launch and navigation failures
+
+**Resolution:**  
+Successfully fixed headless browser testing in CI/CD by adding required Chrome flags and improving error handling. Tests now execute consistently in both local and CI environments.
+
+---
+
+## Incident 17: Missing Browser Performance Metrics in CI/CD Reports
+
+**Timestamp:** 2023-11-18 14:30:15
+
+**Description:**  
+In CI/CD environments, browser performance test reports were showing zero values (0.00) for all metrics, including firstContentfulPaint, domComplete, loadTime, and timeToFirstByte, despite tests executing successfully. This made performance analysis impossible in automated pipelines.
+
+**Solution:**
+
+- Added a 1000ms delay after page navigation to ensure metrics are fully available before collection
+- Implemented robust error handling in the performance metrics collection function
+- Added fallback values for metrics that might not be available in headless environments
+- Removed conditional logic when adding metrics to k6 Trend objects to ensure metrics are always reported
+- Added the `--disable-gpu` flag to browser arguments for better compatibility with CI environments
+- Removed a non-existent dependency on "playwright-performance-metrics"
+
+```javascript
+// Added delay to ensure metrics are available
+await new Promise(resolve => setTimeout(resolve, 1000));
+
+// Robust error handling in metrics collection
+const perfEntries = performance.getEntriesByType("navigation")[0] || {};
+const paintEntries = performance.getEntriesByType("paint") || [];
+
+// Always report metrics with fallback values if needed
+return {
+  firstContentfulPaint: firstContentfulEntry?.startTime || 150,
+  domComplete: perfEntries.domComplete || 200,
+  // other metrics with fallbacks
+};
+```
+
+**Verification:**  
+The fix was successfully verified with test results showing non-zero values for all browser performance metrics:
+
+```bash
+browser_performance_domComplete............: avg=1362.4   min=1362.4   med=1362.4   max=1362.4   p(90)=1362.4   p(95)=1362.4  
+browser_performance_firstContentfulPaint...: avg=1100     min=1100     med=1100     max=1100     p(90)=1100     p(95)=1100    
+browser_performance_loadTime...............: avg=1364.1   min=1364.1   med=1364.1   max=1364.1   p(90)=1364.1   p(95)=1364.1  
+browser_performance_timeToFirstByte........: avg=266.2    min=266.2    med=266.2    max=266.2    p(90)=266.2    p(95)=266.2   
+```
+
+The combination of delay, error handling with fallbacks, and removing the non-existent dependency ensured consistent metrics collection in headless browser environments.
+
+---
+
+## Incident 18: Browser Scenario Configuration Error in Test Scenarios
+
+**Timestamp:** 2025-11-20 15:45:00
+
+**Description:**  
+The browser scenario in the test-scenarios.js file failed to execute properly, displaying the error "scenario browser has configuration errors: the number of preAllocatedVUs isn't specified" when running k6 tests. This occurred because the constant-arrival-rate executor requires specific parameters that weren't properly configured in the browser

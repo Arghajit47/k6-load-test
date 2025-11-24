@@ -8,48 +8,16 @@ export default function testCss() {
   const responses = []; // Store responses to return
 
   group("CSS API", function () {
-    let res1 = http.get(
-      "https://www.demoblaze.com/node_modules/bootstrap/dist/css/bootstrap.min.css",
+    let res = http.get(
+      "https://demo.nopcommerce.com/css/h3od5j_krejpo2qkbl1kgq.styles.css?v=pFyrQnM3K4l52k9aWYFPuj4sjhQ",
       {
         tags: { endpoint: "css", type: "api" },
       }
     );
     responses.push(res1);
 
-    check(res1, {
-      "Bootstrap CSS API responds": (r) => r.status === 200 || r.status === 304,
-    });
-
-    let res2 = http.get(
-      "https://www.demoblaze.com/node_modules/video.js/dist/video-js.min.css",
-      {
-        tags: { endpoint: "css", type: "api" },
-      }
-    );
-    responses.push(res2);
-
-    check(res2, {
-      "Video CSS API responds": (r) => r.status === 200 || r.status === 304,
-    });
-
-    let res3 = http.get("https://www.demoblaze.com/css/latofonts.css", {
-      tags: { endpoint: "css", type: "api" },
-    });
-    responses.push(res3);
-
-    check(res3, {
-      "Layout fonts CSS API responds": (r) =>
-        r.status === 200 || r.status === 304,
-    });
-
-    let res4 = http.get("https://www.demoblaze.com/css/latostyle.css", {
-      tags: { endpoint: "css", type: "api" },
-    });
-    responses.push(res4);
-
-    check(res4, {
-      "Layout Styles CSS API responds": (r) =>
-        r.status === 200 || r.status === 304,
+    check(res, {
+      "NopCommerce CSS API responds": (r) => r.status === 200,
     });
   });
 

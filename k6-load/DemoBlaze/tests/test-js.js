@@ -9,7 +9,7 @@ export default function testJs() {
 
   group("Jquery JS API", function () {
     let res = http.get(
-      "https://www.demoblaze.com/node_modules/jquery/dist/jquery.min.js",
+      "https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015",
       {
         tags: { endpoint: "js", type: "api" },
       }
@@ -17,13 +17,13 @@ export default function testJs() {
     responses.push(res);
 
     check(res, {
-      "Jquery JS API responds": (r) => r.status === 200 || r.status === 304,
+      "Jquery JS API responds": (r) => r.status === 200,
     });
   });
 
-  group("Video JS API", function () {
+  group("Rocket loader JS API", function () {
     let res = http.get(
-      "https://www.demoblaze.com/node_modules/video.js/dist/video.min.js",
+      "https://demo.nopcommerce.com/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js",
       {
         tags: { endpoint: "js", type: "api" },
       }
@@ -31,13 +31,13 @@ export default function testJs() {
     responses.push(res);
 
     check(res, {
-      "Video JS API responds": (r) => r.status === 200 || r.status === 304,
+      "Rocket loader JS API responds": (r) => r.status === 200,
     });
   });
 
-  group("Video HLS JS API", function () {
+  group("Script JS API", function () {
     let res = http.get(
-      "https://www.demoblaze.com/node_modules/videojs-contrib-hls/dist/videojs-contrib-hls.min.js",
+      "https://demo.nopcommerce.com/js/cjkceal7d8chik1yvvedwg.scripts.js?v=R_FRvhIKfWkEGwb519F8p_5a5oc",
       {
         tags: { endpoint: "js", type: "api" },
       }
@@ -45,13 +45,13 @@ export default function testJs() {
     responses.push(res);
 
     check(res, {
-      "Video HLS JS API responds": (r) => r.status === 200 || r.status === 304,
+      "Script JS API responds": (r) => r.status === 200,
     });
   });
 
-  group("Tether JS API", function () {
+  group("Google Tag Manager JS API", function () {
     let res = http.get(
-      "https://www.demoblaze.com/node_modules/tether/dist/js/tether.min.js",
+      "https://www.googletagmanager.com/gtag/js?id=G-SCT41TW89V",
       {
         tags: { endpoint: "js", type: "api" },
       }
@@ -59,49 +59,11 @@ export default function testJs() {
     responses.push(res);
 
     check(res, {
-      "Tether JS API responds": (r) => r.status === 200 || r.status === 304,
+      "Google Tag Manager JS API responds": (r) => r.status === 200,
     });
   });
 
-  group("Bootstrap JS API", function () {
-    let res = http.get(
-      "https://www.demoblaze.com/node_modules/bootstrap/dist/js/bootstrap.min.js",
-      {
-        tags: { endpoint: "js", type: "api" },
-      }
-    );
-    responses.push(res);
 
-    check(res, {
-      "Bootstrap JS API responds": (r) => r.status === 200 || r.status === 304,
-    });
-  });
-
-  group("Index JS API", function () {
-    let res = http.get("https://www.demoblaze.com/js/index.js", {
-      tags: { endpoint: "js", type: "api" },
-    });
-    responses.push(res);
-
-    check(res, {
-      "Index JS API responds": (r) => r.status === 200 || r.status === 304,
-    });
-  });
-
-  // REMOVE THIS GROUP - blob URLs won't work with HTTP requests
-  // group("Blob JS API", function () {
-  //   let res = http.get(
-  //     "blob:https://www.demoblaze.com/eda83917-11d9-4c9b-900b-b1a6bff3f8c3",
-  //     {
-  //       tags: { endpoint: "js", type: "api" },
-  //     }
-  //   );
-  //   responses.push(res);
-  //
-  //   check(res, {
-  //     "Blob JS API responds": (r) => r.status === 200 || r.status === 304,
-  //   });
-  // });
 
   return responses; // Return responses for RUM integration
 }

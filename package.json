@@ -19,6 +19,7 @@
   "dependencies": {
     "@arghajit/playwright-pulse-report": "^0.2.6",
     "better-sqlite3": "^12.4.1",
+    "dotenv": "^17.2.3",
     "k6-html-reporter": "^1.0.5",
     "playwright-performance-metrics": "^1.2.2",
     "pulse-dashboard": "^1.1.4"

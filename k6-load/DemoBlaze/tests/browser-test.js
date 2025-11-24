@@ -1,92 +1,62 @@
-import { browser } from "k6/browser";
-import { check } from "k6";
-import { Trend } from "k6/metrics";
-import { options as browserOptions } from "../configs/browser-config.js";
+import http from "k6/http";
+import { check, group } from "k6";
+import { options } from "../configs/browser-config.js";
 
-// Create custom metrics
-const firstContentfulPaintMetric = new Trend('browser_performance_firstContentfulPaint');
-const domCompleteMetric = new Trend('browser_performance_domComplete');
-const loadTimeMetric = new Trend('browser_performance_loadTime');
-const timeToFirstByteMetric = new Trend('browser_performance_timeToFirstByte');
-
-// We still need to define options here for when this script is run directly
-export const options = {
-  scenarios: {
-    default: {
-      executor: browserOptions.executor,
-      vus: browserOptions.vus,
-      options: {
-        ...browserOptions.options,
-        browser: {
-          type: "chromium",
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-        },
-      },
-    }
-  },
-  thresholds: browserOptions.thresholds,
-  tags: browserOptions.tags
+// Customize options by adding the threshold for performance score check
+export const thresholds = {
+  "checks{Landing page html api performance score is above 0.8}": ["rate>=1.0"],
 };
 
+// Merge with existing options
+const customOptions = JSON.parse(JSON.stringify(options));
+if (!customOptions.thresholds) {
+  customOptions.thresholds = {};
+}
+Object.assign(customOptions.thresholds, thresholds);
+export { customOptions as options };
 
-export default async function testBrowser() {
-  const page = await browser.newPage();
+const pageSpeedApiKey = "AIzaSyCtENysGuhYQF4_04k8FVyz-Bh4Wqu-l3k";
+const url1 = "https://demo.nopcommerce.com/";
+const url2 = "https://demo.nopcommerce.com/electronics";
 
-  try {
-    // Navigate to the target URL
-    await page.goto("https://test.k6.io", { waitUntil: "networkidle" });
+export default function testBrowser() {
+  const responses = []; // Store responses to return
 
-    // Add a small delay to ensure page is fully loaded and metrics are available
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  group("Browser Performance testing 1 - PageSpeed API", function () {
+    let res = http.get(
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url1}&key=${pageSpeedApiKey}`,
+      {
+        tags: { endpoint: ["browser", "homePage"], type: "page" },
+      }
+    );
+    responses.push(res);
 
-    // Basic check to see if page loaded
-    check(page, {
-      "page loaded": () => page.url().includes("test.k6.io"), // Check that we landed on the correct site
+    check(res, {
+      "Landing page html api status is successful": (r) => r.status === 200,
     });
-
-    // Collect performance metrics using browser APIs with more robust error handling
-    const metrics = await page.evaluate(() => {
-      // Get navigation timing metrics with error handling
-      const perfEntries = performance.getEntriesByType("navigation")[0] || {};
-      const paintEntries = performance.getEntriesByType("paint") || [];
-
-      // Force metrics to always have numeric values
-      const firstPaintEntry = paintEntries.find((entry) => entry.name === "first-paint");
-      const firstContentfulEntry = paintEntries.find(
-        (entry) => entry.name === "first-contentful-paint"
-      );
-      
-      // If metrics aren't available, use fallback values
-      return {
-        firstPaint: firstPaintEntry?.startTime || 100,
-        firstContentfulPaint: firstContentfulEntry?.startTime || 150,
-        domComplete: perfEntries.domComplete || 200,
-        loadTime: (perfEntries.loadEventEnd - perfEntries.fetchStart) || 250,
-        timeToFirstByte: (perfEntries.responseStart - perfEntries.requestStart) || 50,
-        totalBytes: perfEntries.transferSize || 1000,
-      };
+    check(res, {
+      "Landing page html api performance score is above 0.8": (r) =>
+        r.json().lighthouseResult.categories.performance.score >= 0.8,
     });
+  });
 
-    console.log("Performance metrics:", metrics);
-    
-    // Always report metrics to k6 for threshold evaluation using the Trend objects
-    // In CI, we ensure metrics are always present with either real or fallback values
-    firstContentfulPaintMetric.add(metrics.firstContentfulPaint);
-    domCompleteMetric.add(metrics.domComplete);
-    loadTimeMetric.add(metrics.loadTime);
-    timeToFirstByteMetric.add(metrics.timeToFirstByte);
-    
-    // Additional logging to confirm metrics are being tracked
-    console.log("Added metrics to k6 trends:", {
-      firstContentfulPaint: metrics.firstContentfulPaint,
-      domComplete: metrics.domComplete,
-      loadTime: metrics.loadTime,
-      timeToFirstByte: metrics.timeToFirstByte
+  group("Browser Performance testing 2 - PageSpeed API", function () {
+    let res = http.get(
+      `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${url2}&key=${pageSpeedApiKey}`,
+      {
+        tags: { endpoint: ["browser", "electronics"], type: "page" },
+      }
+    );
+    responses.push(res);
+
+    check(res, {
+      "Electronics page html api status is successful": (r) => r.status === 200,
     });
+    check(res, {
+      "Electronics page html api performance score is above 0.8": (r) =>
+        r.json().lighthouseResult.categories.performance.score >= 0.8,
+    });
+  });
 
-    return metrics;
-  } finally {
-    page.close();
-  }
+  return responses;
 }

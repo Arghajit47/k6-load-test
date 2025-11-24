@@ -8,14 +8,13 @@ export default function testDoc() {
   const responses = []; // Store responses to return
 
   group("Doc API", function () {
-    let res = http.get("https://www.demoblaze.com/", {
+    let res = http.get("https://demo.nopcommerce.com/", {
       tags: { endpoint: "doc", type: "page" },
     });
     responses.push(res);
 
     check(res, {
-      "Landing page html api status is successful": (r) =>
-        r.status === 200 || r.status === 304,
+      "Landing page html api status is successful": (r) => r.status === 200,
     });
   });
 

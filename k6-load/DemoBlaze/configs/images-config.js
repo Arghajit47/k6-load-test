@@ -3,7 +3,7 @@ import { sharedThresholds } from "./shared-thresholds.js";
 export const options = {
   executor: "constant-vus",
   vus: 500,
-  duration: "1m",
+  duration: "5m",
   thresholds: {
     ...sharedThresholds,
     "http_req_duration{type:image}": ["p(95)<1000"], // Images can be slower
