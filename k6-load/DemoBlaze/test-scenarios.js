@@ -79,7 +79,7 @@ export function handleSummary(data) {
   console.log("Preparing the end-of-test summary...");
   return {
     "summary.html": htmlReport(data),
-    stdout: textSummary(data, { indent: " ", enableColors: true }),
+    "summary.json": JSON.stringify(data),
   };
 }
 
